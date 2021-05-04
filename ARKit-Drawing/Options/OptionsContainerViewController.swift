@@ -4,6 +4,7 @@ import SceneKit
 protocol OptionsViewControllerDelegate: class {
     func objectSelected(node: SCNNode)
     func undoLastObject()
+    func enableContinue()
     func togglePlaneVisualization()
     func resetScene()
 }
@@ -36,6 +37,7 @@ class OptionsContainerViewController: UIViewController, UINavigationControllerDe
             Option(option: ShapeOption.addScene),
             Option(option: ShapeOption.togglePlane, showsDisclosureIndicator: false),
             Option(option: ShapeOption.undoLastShape, showsDisclosureIndicator: false),
+            Option(option: ShapeOption.enableContinue, showsDisclosureIndicator: false),
             Option(option: ShapeOption.resetScene, showsDisclosureIndicator: false)
         ]
         
@@ -51,6 +53,8 @@ class OptionsContainerViewController: UIViewController, UINavigationControllerDe
                 self.delegate?.togglePlaneVisualization()
             case .undoLastShape:
                 self.delegate?.undoLastObject()
+            case .enableContinue:
+                self.delegate?.enableContinue()
             case .resetScene:
                 self.delegate?.resetScene()
             }
@@ -67,9 +71,8 @@ class OptionsContainerViewController: UIViewController, UINavigationControllerDe
             
             return fileEnumerator.compactMap { element in
                 let url = element as! URL
-                
                 guard url.pathExtension == "scn" || url.pathExtension == "dae" else { return nil }
-                
+               
                 return url.lastPathComponent
             }
         }()
@@ -77,7 +80,10 @@ class OptionsContainerViewController: UIViewController, UINavigationControllerDe
         let options = availableScenes.map { Option(name: $0, option: $0, showsDisclosureIndicator: false) }
         let selector = OptionSelectorViewController(options: options)
         selector.optionSelectionCallback = { [unowned self] name in
-            let nameWithoutExtension = name.replacingOccurrences(of: ".scn", with: "")
+            
+            var nameWithoutExtension = name.replacingOccurrences(of: ".scn", with: "")
+            nameWithoutExtension = nameWithoutExtension.replacingOccurrences(of: ".dae", with: "")
+            
             let scene = SCNScene(named: "\(resourceFolder)/\(nameWithoutExtension)/\(name)")!
             self.delegate?.objectSelected(node: scene.rootNode)
         }

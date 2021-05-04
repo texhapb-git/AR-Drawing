@@ -5,6 +5,7 @@ enum ShapeOption: String, RawRepresentable {
     case addScene = "Select Scene File"
     case togglePlane = "Enable/Disable Plane Visualization"
     case undoLastShape = "Undo Last Shape"
+    case enableContinue = "Enable/Disable Continue Drawing"
     case resetScene = "Reset Scene"
 }
 

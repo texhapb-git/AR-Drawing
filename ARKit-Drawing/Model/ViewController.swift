@@ -8,10 +8,12 @@ class ViewController: UIViewController {
     
     // MARK: - Properties
     
-    let configuration = ARWorldTrackingConfiguration()
+    private let configuration = ARWorldTrackingConfiguration()
     
     /// Minimum distance between objects
-    let minimumDistance: Float = 0.05
+    private let minimumDistance: Float = 0.05
+    
+    private var enableContinueDrawing: Bool = true
     
     enum ObjectPlacementMode {
         case freeform, plane, image
@@ -64,7 +66,7 @@ class ViewController: UIViewController {
     
     /// Add object in 20 cm in front of camera
     /// - Parameter node: node of the object to add
-    func addNodeInFront(_ node: SCNNode) {
+    private func addNodeInFront(_ node: SCNNode) {
         
         // Get current camera frame
         guard let frame = sceneView.session.currentFrame else { return }
@@ -92,7 +94,7 @@ class ViewController: UIViewController {
         addNodeToSceneRoot(node)
     }
     
-    func addNodeToImage(_ node: SCNNode, at point: CGPoint){
+    private func addNodeToImage(_ node: SCNNode, at point: CGPoint){
         guard let result = sceneView.hitTest(point, options: [:]).first else { return }
         guard result.node.name == "image" else { return }
         
@@ -102,7 +104,7 @@ class ViewController: UIViewController {
         addNodeToSceneRoot(node)
     }
     
-    func addNode(_ node: SCNNode, to parentNode: SCNNode) {
+    private func addNode(_ node: SCNNode, to parentNode: SCNNode) {
         
         // Check that object is not too closed to previous object
         if let lastNode = lastNode {
@@ -115,8 +117,9 @@ class ViewController: UIViewController {
             
             let distanceSquare = x*x + y*y + z*z
             let minimumDistanceSquare = minimumDistance * minimumDistance
+
             
-            guard minimumDistanceSquare < distanceSquare else { return }
+            guard enableContinueDrawing && minimumDistanceSquare < distanceSquare else { return }
         }
         
         // Clone the node to create separated copies
@@ -138,7 +141,7 @@ class ViewController: UIViewController {
     /// - Parameters:
     ///   - node: node to be added
     ///   - point: user's point touch the screen
-    func addNode(_ node: SCNNode, at point: CGPoint) {
+    private func addNode(_ node: SCNNode, at point: CGPoint) {
         
         guard let hitResult = sceneView.hitTest(point, types: .existingPlaneUsingExtent).first else { return }
         guard let anchor = hitResult.anchor as? ARPlaneAnchor, anchor.alignment == .horizontal else { return }
@@ -148,18 +151,33 @@ class ViewController: UIViewController {
         
     }
     
-    func addNodeToSceneRoot(_ node: SCNNode)  {
+    private func addNodeToSceneRoot(_ node: SCNNode)  {
         addNode(node, to: sceneView.scene.rootNode)
     }
     
     
-    func reloadConfiguration() {
+    private func reloadConfiguration(reset: Bool = false) {
+        
+        if reset {
+            
+            // Clear objects
+            objectNodes.forEach { $0.removeFromParentNode() }
+            objectNodes.removeAll()
+            
+            planeNodes.forEach { $0.removeFromParentNode() }
+            planeNodes.removeAll()
+            
+            arePlanesHidden = false
+        }
+        
+        let options: ARSession.RunOptions = reset ? .removeExistingAnchors : []
+        
         configuration.detectionImages = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil)
         configuration.planeDetection = .horizontal
-        sceneView.session.run(configuration)
+        sceneView.session.run(configuration, options: options)
     }
     
-    func processTouches(_ touches: Set<UITouch>){
+    private func processTouches(_ touches: Set<UITouch>){
         
         guard let touch = touches.first, let selectedNode = selectedNode else {
             return
@@ -226,13 +244,19 @@ class ViewController: UIViewController {
 
 extension ViewController: OptionsViewControllerDelegate {
     
+    func enableContinue() {
+        dismiss(animated: true)
+        enableContinueDrawing.toggle()
+    }
+    
+    
     func objectSelected(node: SCNNode) {
-        dismiss(animated: true, completion: nil)
+        dismiss(animated: true)
         selectedNode = node
     }
     
     func togglePlaneVisualization() {
-        dismiss(animated: true, completion: nil)
+        dismiss(animated: true)
         
         if objectMode == .plane {
             arePlanesHidden.toggle()
@@ -241,10 +265,17 @@ extension ViewController: OptionsViewControllerDelegate {
     
     func undoLastObject() {
         
+        if let lastObject = objectNodes.last {
+            lastObject.removeFromParentNode()
+            objectNodes.removeLast()
+        } else {
+           dismiss(animated: true)
+        }
     }
     
     func resetScene() {
-        dismiss(animated: true, completion: nil)
+        reloadConfiguration(reset: true)
+        dismiss(animated: true)
     }
 }
 
